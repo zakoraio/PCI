@@ -24,6 +24,7 @@
 #define	RASTER_TARGET_FRAME 0x3100d
 #define	RASTER_FLUSH 0x3FFC
 #define	CFG_REBOOT 0x1000
+#define	FIFO_DEPTH 0x4004 
 
 struct u_kyouko2_device {
 	unsigned int *u_control_base;
