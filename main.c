@@ -51,7 +51,7 @@ void u_sync(void){
 
 float verticesX[9000][3];
 float verticesY[9000][3];
-float colors[9000][3];
+float colors[9000][3][3];
 
 
 
@@ -105,9 +105,12 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 		verticesY[index][0] = a.y;
 		verticesY[index][1] = mid(a, b).y;
 		verticesY[index][2] = mid(a, c).y;
-		colors[index][0] = scale(rand_interval(0, 255),0,255,0,1);
-		colors[index][1] = scale(rand_interval(0, 255), 0, 255, 0, 1);
-		colors[index][2] = scale(rand_interval(0, 255), 0, 255, 0, 1);
+		int i,j;
+		for(i = 0;i<3;i++){
+  		  for(j=0;j<3;j++){
+				colors[index][i][j] = scale(rand_interval(0, 255),0,255,0,1);
+		}
+		}
 		drawSierpinski(iter + 1, mid(a, b), b, mid(b, c));
 		index++;
 		verticesX[index][0] = mid(a, b).x;
@@ -116,9 +119,13 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 		verticesY[index][0] = mid(a, b).y;
 		verticesY[index][1] = b.y;
 		verticesY[index][2] = mid(b, c).y;
-		colors[index][0] = scale(rand_interval(0, 255), 0, 255, 0, 1);
-		colors[index][1] = scale(rand_interval(0, 255), 0, 255, 0, 1);
-		colors[index][2] = scale(rand_interval(0, 255), 0, 255, 0, 1);
+
+		for(i = 0;i<3;i++){
+  		  for(j=0;j<3;j++){
+				colors[index][i][j] = scale(rand_interval(0, 255),0,255,0,1);
+		}
+		}
+
 		drawSierpinski(iter + 1, mid(a, c), mid(b, c), c);
 		index++;
 		verticesX[index][0] = mid(a, c).x;
@@ -127,13 +134,15 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 		verticesY[index][0] = mid(a, c).y;
 		verticesY[index][1] = mid(b, c).y;
 		verticesY[index][2] = c.y;
-		colors[index][0] = scale(rand_interval(0, 255), 0, 255, 0, 1);
-		colors[index][1] = scale(rand_interval(0, 255), 0, 255, 0, 1);
-		colors[index][2] = scale(rand_interval(0, 255), 0, 255, 0, 1);
+
+		for(i = 0;i<3;i++){
+  		  for(j=0;j<3;j++){
+				colors[index][i][j] = scale(rand_interval(0, 255),0,255,0,1);
+		}
+		}
 	}
 
 }
-
 
 
 
@@ -173,12 +182,12 @@ void draw_fifo(int fd){
 			
 			U_WRITE_REG(VTX_COORD4F+12, *(unsigned int*)&one);
 			
-			U_WRITE_REG(VTX_COLOR4F, *(unsigned int*)&colors[i][0]);
+			U_WRITE_REG(VTX_COLOR4F, *(unsigned int*)&colors[i][j][0]);
 
     
-			U_WRITE_REG(VTX_COLOR4F+4, *(unsigned int*)&colors[i][1]);
+			U_WRITE_REG(VTX_COLOR4F+4, *(unsigned int*)&colors[i][j][1]);
 
-			U_WRITE_REG(VTX_COLOR4F+8, *(unsigned int*)&colors[i][2]);
+			U_WRITE_REG(VTX_COLOR4F+8, *(unsigned int*)&colors[i][j][2]);
 
 			U_WRITE_REG(VTX_COLOR4F+12, *(unsigned int*)&zero);
 
@@ -217,7 +226,9 @@ int main(){
 		U_WRITE_FB(i,0xFF0000);
 	}
 	U_WRITE_REG(RASTER_FLUSH,1);
-	ioctl(fd,SYNC);
+	unsigned long l = 20;
+	unsigned long *arg = &l;
+	ioctl(fd,SYNC,&arg);
 	draw_fifo(fd);
 	U_WRITE_REG(RASTER_FLUSH,1);
 	sleep(15);
