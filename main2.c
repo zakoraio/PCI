@@ -4,13 +4,13 @@
 #include <math.h>
 #include <sys/mman.h>
 #include <linux/ioctl.h>
-#include "kyouko2_reg.h"
 #include <time.h>
 #include <stdlib.h>
 #include <math.h>
 #include <stdint.h>
 
-
+#define	VTX_COORD4F 0x5000 
+#define	VTX_COLOR4F 0x5010
 #define VMODE _IOW(0xcc,0,unsigned long)
 #define BIND_DMA _IOW(0xcc,1,unsigned long)
 #define START_DMA _IOWR(0xcc,2,unsigned long)
@@ -18,6 +18,12 @@
 #define FLUSH _IO(0xcc,4)
 #define GRAPHICS_ON 1
 #define GRAPHICS_OFF 0
+#define RASTER_PRIMITIVE 0x3000
+#define	RASTER_EMIT 0x3004 
+#define	RASTER_CLEAR 0x3008 
+#define	RASTER_TARGET_FRAME 0x3100d
+#define	RASTER_FLUSH 0x3FFC
+#define	CFG_REBOOT 0x1000
 
 struct u_kyouko2_device {
 	unsigned int *u_control_base;
@@ -33,8 +39,8 @@ struct kyouko2_dma_hdr{
 
 
 
-#define	KYOUKO_CONTROL_SIZE (65536)			/*  */
-#define	Device_Ram (0x0020)			/*  */
+#define	KYOUKO_CONTROL_SIZE (65536)		
+#define	Device_Ram (0x0020)		
 unsigned long arg;
 unsigned int countByte;
 
