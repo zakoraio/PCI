@@ -29,7 +29,7 @@ unsigned long arg;
 unsigned int countByte;
 
 unsigned int U_READ_REG(unsigned int reg){
-	return (*(kyouko2.u_control_base + (reg>>2)));
+	return (*(kyouko2.u_control_base + (reg >> 2)));
 }
 
 void U_WRITE_FB(unsigned int reg, unsigned int value){
@@ -37,11 +37,11 @@ void U_WRITE_FB(unsigned int reg, unsigned int value){
 }
 
 void U_WRITE_REG(unsigned int reg, unsigned int value){
-	*(kyouko2.u_control_base + (reg>>2)) = value;
+	*(kyouko2.u_control_base + (reg >> 2)) = value;
 }
 
 void u_sync(void){
-	while(U_READ_REG(FIFO_DEPTH)>0);
+	while (U_READ_REG(FIFO_DEPTH)>0);
 }
 
 
@@ -83,15 +83,17 @@ unsigned int rand_interval(unsigned int min, unsigned int max)
 {
 	return (rand() % (max + 1 - min)) + min;
 }
-int index = -1;
 
+
+static int index = -1;
+static int arrayIndex = 0;
 
 
 
 void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 {
-	
-	if (iter >= 4)  
+
+	if (iter >= 4)
 	{
 		return;
 	}
@@ -105,11 +107,11 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 		verticesY[index][0] = a.y;
 		verticesY[index][1] = mid(a, b).y;
 		verticesY[index][2] = mid(a, c).y;
-		int i,j;
-		for(i = 0;i<3;i++){
-  		  for(j=0;j<3;j++){
-				colors[index][i][j] = scale(rand_interval(0, 255),0,255,0,1);
-		}
+		int i, j;
+		for (i = 0; i<3; i++){
+			for (j = 0; j<3; j++){
+				colors[index][i][j] = scale(rand_interval(0, 255), 0, 255, 0, 1);
+			}
 		}
 		drawSierpinski(iter + 1, mid(a, b), b, mid(b, c));
 		index++;
@@ -120,10 +122,10 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 		verticesY[index][1] = b.y;
 		verticesY[index][2] = mid(b, c).y;
 
-		for(i = 0;i<3;i++){
-  		  for(j=0;j<3;j++){
-				colors[index][i][j] = scale(rand_interval(0, 255),0,255,0,1);
-		}
+		for (i = 0; i<3; i++){
+			for (j = 0; j<3; j++){
+				colors[index][i][j] = scale(rand_interval(0, 255), 0, 255, 0, 1);
+			}
 		}
 
 		drawSierpinski(iter + 1, mid(a, c), mid(b, c), c);
@@ -135,10 +137,10 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 		verticesY[index][1] = mid(b, c).y;
 		verticesY[index][2] = c.y;
 
-		for(i = 0;i<3;i++){
-  		  for(j=0;j<3;j++){
-				colors[index][i][j] = scale(rand_interval(0, 255),0,255,0,1);
-		}
+		for (i = 0; i<3; i++){
+			for (j = 0; j<3; j++){
+				colors[index][i][j] = scale(rand_interval(0, 255), 0, 255, 0, 1);
+			}
 		}
 	}
 
@@ -151,58 +153,86 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 
 void draw_fifo(int fd){
 
-		struct Coord top, left, right;
-		left.x = -1;
-		left.y = 1;
-		top.x = 0;
-		top.y = -1;
-		right.x = 1;
-		right.y = 1;
-		float one = 1.0;
-		float zero = 0.0;
-		drawSierpinski(0, left, top, right);
-		int tri = 0,i=0,j=0;
-   		printf("index = %d",index);  
+	struct Coord top, left, right;
+	left.x = -1;
+	left.y = 1;
+	top.x = 0;
+	top.y = -1;
+	right.x = 1;
+	right.y = 1;
+	float one = 1.0;
+	float zero = 0.0;
+	drawSierpinski(0, left, top, right);
+	int tri = 0, i = 0, j = 0;
+	printf("index = %d", index);
 
 	U_WRITE_REG(RASTER_PRIMITIVE, 1);
-		for (i = index-1; i >=0; i--){
-		
-//	U_WRITE_REG(RASTER_FLUSH,1);
-	
-	U_WRITE_REG(RASTER_PRIMITIVE, 1);
-	ioctl(fd,SYNC);
-	           for(j = 0;j<3;j++){	
- 		printf("(%f , %f)",verticesX[i][j],verticesY[i][j]);	
-                printf("Color = %f , %f  , %f" , colors[i][0] ,colors[i][1],colors[i][2]);
+	for (i = index - 1; i >= 0; i--){
+
+		//	U_WRITE_REG(RASTER_FLUSH,1);
+
+		U_WRITE_REG(RASTER_PRIMITIVE, 1);
+		ioctl(fd, SYNC);
+		for (j = 0; j<3; j++){
+			printf("(%f , %f)", verticesX[i][j], verticesY[i][j]);
+			printf("Color = %f , %f  , %f", colors[i][0], colors[i][1], colors[i][2]);
 			U_WRITE_REG(VTX_COORD4F, *(unsigned int*)&verticesX[i][j]);
 
-			U_WRITE_REG(VTX_COORD4F+4, *(unsigned int*)&verticesY[i][j]);
+			U_WRITE_REG(VTX_COORD4F + 4, *(unsigned int*)&verticesY[i][j]);
 
-			U_WRITE_REG(VTX_COORD4F+8, *(unsigned int*)&zero);
-			
-			U_WRITE_REG(VTX_COORD4F+12, *(unsigned int*)&one);
-			
+			U_WRITE_REG(VTX_COORD4F + 8, *(unsigned int*)&zero);
+
+			U_WRITE_REG(VTX_COORD4F + 12, *(unsigned int*)&one);
+
 			U_WRITE_REG(VTX_COLOR4F, *(unsigned int*)&colors[i][j][0]);
 
-    
-			U_WRITE_REG(VTX_COLOR4F+4, *(unsigned int*)&colors[i][j][1]);
 
-			U_WRITE_REG(VTX_COLOR4F+8, *(unsigned int*)&colors[i][j][2]);
+			U_WRITE_REG(VTX_COLOR4F + 4, *(unsigned int*)&colors[i][j][1]);
 
-			U_WRITE_REG(VTX_COLOR4F+12, *(unsigned int*)&zero);
+			U_WRITE_REG(VTX_COLOR4F + 8, *(unsigned int*)&colors[i][j][2]);
 
-		U_WRITE_REG(RASTER_EMIT,0);
+			U_WRITE_REG(VTX_COLOR4F + 12, *(unsigned int*)&zero);
+
+			U_WRITE_REG(RASTER_EMIT, 0);
 		}
 
-	U_WRITE_REG(RASTER_PRIMITIVE, 0);
-        
-U_WRITE_REG(RASTER_FLUSH,1);
+		U_WRITE_REG(RASTER_PRIMITIVE, 0);
+
+		U_WRITE_REG(RASTER_FLUSH, 1);
 
 	}
-
-
-
 }
+
+
+
+void draw_dma(int arrayIndex){
+	
+	hdr.opcode = 0x14;
+	hdr.count = 3;
+	hdr.address = 0x1045;
+
+	struct vertice vertices[3];
+
+	countByte = 0;
+	unsigned int* buf = (unsigned int*)(arg);
+	//printf("writing buffer header\n");
+	buf[countByte++] = *(unsigned int*)&hdr;
+	//printf("filling buffer\n");
+
+		for (j = 0; j<3; ++j){
+			buf[countByte++] = *(unsigned int*)&(color[arrayIndex][j][0]);
+			buf[countByte++] = *(unsigned int*)&(color[arrayIndex][j][1]);
+			buf[countByte++] = *(unsigned int*)&(color[arrayIndex][j][2]);
+		}
+	
+		for (j = 0; j<3; ++j){
+			buf[countByte++] = *(unsigned int*)&(verticesX[arrayIndex][j]);
+			buf[countByte++] = *(unsigned int*)&(verticesY[arrayIndex][j]);
+			buf[countByte++] = *(unsigned int*)&zero;
+		}
+}
+}
+
 
 
 int main(){
@@ -212,28 +242,46 @@ int main(){
 	int i;
 	int ramSize;
 	fd = open("/dev/kyouko2", O_RDWR);
-	kyouko2.u_control_base = mmap(0,KYOUKO_CONTROL_SIZE,PROT_READ|PROT_WRITE,MAP_SHARED,fd,0);
+	kyouko2.u_control_base = mmap(0, KYOUKO_CONTROL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 	result = U_READ_REG(Device_Ram);
 	printf("Ram Size in MB is: %d\n", result);
 	ramSize = result * 1024 * 1024;
-	kyouko2.u_fb_base = mmap(0,ramSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0x80000000);
+	kyouko2.u_fb_base = mmap(0, ramSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0x80000000);
 
 	//draw red line
-	ioctl(fd,VMODE,GRAPHICS_ON);
-	ioctl(fd,SYNC);
+	ioctl(fd, VMODE, GRAPHICS_ON);
+	ioctl(fd, SYNC);
 	//u_sync();
-	for(i=200*1024; i<201*1024;i++){
-		U_WRITE_FB(i,0xFF0000);
+	for (i = 200 * 1024; i<201 * 1024; i++){
+		U_WRITE_FB(i, 0xFF0000);
 	}
-	U_WRITE_REG(RASTER_FLUSH,1);
+	U_WRITE_REG(RASTER_FLUSH, 1);
 	unsigned long l = 20;
 	unsigned long *arg = &l;
-	ioctl(fd,SYNC,&arg);
+	ioctl(fd, SYNC, &arg);
 	draw_fifo(fd);
-	U_WRITE_REG(RASTER_FLUSH,1);
+	U_WRITE_REG(RASTER_FLUSH, 1);
+
+	ioctl(fd, SYNC);
+
+	ioctl(fd, BIND_DMA, &arg);
+	ioctl(fd, SYNC);
+	for (i = 0; i < 10; i++) {
+		
+		draw_dma();
+		arg = countByte; 
+		
+		ioctl(fd, SYNC);
+		ioctl(fd, START_DMA, &arg);
+
+		U_WRITE_REG(RASTER_FLUSH, 1);
+		ioctl(fd, SYNC);
+
+	}
+
 	sleep(15);
-	ioctl(fd,VMODE,GRAPHICS_OFF);
-	U_WRITE_REG(CFG_REBOOT,1);
+	ioctl(fd, VMODE, GRAPHICS_OFF);
+	U_WRITE_REG(CFG_REBOOT, 1);
 	close(fd);
 	return 0;
 }
