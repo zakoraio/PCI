@@ -4,11 +4,13 @@
 #include <math.h>
 #include <sys/mman.h>
 #include <linux/ioctl.h>
-#include "kyouko2_reg.h"
 #include <time.h>
 #include <stdlib.h>
-# include <math.h>
+#include <math.h>
+#include <stdint.h>
 
+#define	VTX_COORD4F 0x5000 
+#define	VTX_COLOR4F 0x5010
 #define VMODE _IOW(0xcc,0,unsigned long)
 #define BIND_DMA _IOW(0xcc,1,unsigned long)
 #define START_DMA _IOWR(0xcc,2,unsigned long)
@@ -16,6 +18,13 @@
 #define FLUSH _IO(0xcc,4)
 #define GRAPHICS_ON 1
 #define GRAPHICS_OFF 0
+#define RASTER_PRIMITIVE 0x3000
+#define	RASTER_EMIT 0x3004 
+#define	RASTER_CLEAR 0x3008 
+#define	RASTER_TARGET_FRAME 0x3100d
+#define	RASTER_FLUSH 0x3FFC
+#define	CFG_REBOOT 0x1000
+#define	FIFO_DEPTH 0x4004 
 
 struct u_kyouko2_device {
 	unsigned int *u_control_base;
@@ -23,8 +32,16 @@ struct u_kyouko2_device {
 }kyouko2;
 
 
-#define	KYOUKO_CONTROL_SIZE (65536)			/*  */
-#define	Device_Ram (0x0020)			/*  */
+struct kyouko2_dma_hdr{
+	uint32_t address:14;
+	uint32_t count:10;
+	uint32_t opcode:8;
+}hdr;
+
+
+
+#define	KYOUKO_CONTROL_SIZE (65536)		
+#define	Device_Ram (0x0020)		
 unsigned long arg;
 unsigned int countByte;
 
@@ -87,13 +104,13 @@ unsigned int rand_interval(unsigned int min, unsigned int max)
 
 static int index = -1;
 static int arrayIndex = 0;
-
+static int limit = 1;
 
 
 void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 {
 
-	if (iter >= 4)
+	if (iter >= limit)
 	{
 		return;
 	}
@@ -148,28 +165,33 @@ void drawSierpinski(int iter, struct Coord a, struct Coord b, struct Coord c)
 
 
 
+struct Coord top, left, right;
+void initSierpinski(){
+left.x = -1;
+left.y = 1;
+top.x = 0;
+top.y = -1;
+right.x = 1;
+right.y = 1;
+}
 
 
 
 void draw_fifo(int fd){
 
-	struct Coord top, left, right;
-	left.x = -1;
-	left.y = 1;
-	top.x = 0;
-	top.y = -1;
-	right.x = 1;
-	right.y = 1;
 	float one = 1.0;
 	float zero = 0.0;
-	drawSierpinski(0, left, top, right);
 	int tri = 0, i = 0, j = 0;
+	
+	initSierpinski();
+	limit = 4;
+	
+	drawSierpinski(0, left, top, right);
+	
 	printf("index = %d", index);
 
 	U_WRITE_REG(RASTER_PRIMITIVE, 1);
 	for (i = index - 1; i >= 0; i--){
-
-		//	U_WRITE_REG(RASTER_FLUSH,1);
 
 		U_WRITE_REG(RASTER_PRIMITIVE, 1);
 		ioctl(fd, SYNC);
@@ -210,27 +232,21 @@ void draw_dma(int arrayIndex){
 	hdr.opcode = 0x14;
 	hdr.count = 3;
 	hdr.address = 0x1045;
-
-	struct vertice vertices[3];
-
+	int j = 0;
+	float zero = 0.0;
 	countByte = 0;
 	unsigned int* buf = (unsigned int*)(arg);
-	//printf("writing buffer header\n");
 	buf[countByte++] = *(unsigned int*)&hdr;
-	//printf("filling buffer\n");
 
 		for (j = 0; j<3; ++j){
-			buf[countByte++] = *(unsigned int*)&(color[arrayIndex][j][0]);
-			buf[countByte++] = *(unsigned int*)&(color[arrayIndex][j][1]);
-			buf[countByte++] = *(unsigned int*)&(color[arrayIndex][j][2]);
-		}
-	
-		for (j = 0; j<3; ++j){
+			buf[countByte++] = *(unsigned int*)&(colors[arrayIndex][j][0]);
+			buf[countByte++] = *(unsigned int*)&(colors[arrayIndex][j][1]);
+			buf[countByte++] = *(unsigned int*)&(colors[arrayIndex][j][2]);
 			buf[countByte++] = *(unsigned int*)&(verticesX[arrayIndex][j]);
 			buf[countByte++] = *(unsigned int*)&(verticesY[arrayIndex][j]);
 			buf[countByte++] = *(unsigned int*)&zero;
 		}
-}
+
 }
 
 
@@ -241,34 +257,43 @@ int main(){
 	int result;
 	int i;
 	int ramSize;
+	int choice;
+	printf("1.Frame Buffer Line\n2.Fifo Triangles\n3.DMA Traingles\n");
+	scanf("%d",&choice);
+	
 	fd = open("/dev/kyouko2", O_RDWR);
 	kyouko2.u_control_base = mmap(0, KYOUKO_CONTROL_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	result = U_READ_REG(Device_Ram);
-	printf("Ram Size in MB is: %d\n", result);
-	ramSize = result * 1024 * 1024;
-	kyouko2.u_fb_base = mmap(0, ramSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0x80000000);
 
-	//draw red line
 	ioctl(fd, VMODE, GRAPHICS_ON);
 	ioctl(fd, SYNC);
-	//u_sync();
+	
+	if(choice == 1){
+	result = U_READ_REG(Device_Ram);
+	ramSize = result * 1024 * 1024;
+	kyouko2.u_fb_base = mmap(0, ramSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0x80000000);
 	for (i = 200 * 1024; i<201 * 1024; i++){
 		U_WRITE_FB(i, 0xFF0000);
 	}
 	U_WRITE_REG(RASTER_FLUSH, 1);
-	unsigned long l = 20;
-	unsigned long *arg = &l;
-	ioctl(fd, SYNC, &arg);
+	}
+	else if(choice == 2){
+	ioctl(fd, SYNC);
 	draw_fifo(fd);
 	U_WRITE_REG(RASTER_FLUSH, 1);
-
+	}
+	else if(choice == 3){
 	ioctl(fd, SYNC);
 
+	limit = 2;
+	
+	initSierpinski();
+	drawSierpinski(0, left, top, right);
+	
 	ioctl(fd, BIND_DMA, &arg);
 	ioctl(fd, SYNC);
-	for (i = 0; i < 10; i++) {
+	for (i = index-1; i >=0; i--) {
 		
-		draw_dma();
+		draw_dma(i);
 		arg = countByte; 
 		
 		ioctl(fd, SYNC);
@@ -278,8 +303,11 @@ int main(){
 		ioctl(fd, SYNC);
 
 	}
-
-	sleep(15);
+	}
+	else{
+	printf("Incorrect Choice Exiting.......");
+	}
+	sleep(2);
 	ioctl(fd, VMODE, GRAPHICS_OFF);
 	U_WRITE_REG(CFG_REBOOT, 1);
 	close(fd);
