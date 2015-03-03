@@ -274,7 +274,7 @@ int main(){
 	int i;
 	int ramSize;
 	int choice;
-	printf("1.Frame Buffer Line\n2.Fifo Triangles\n3.DMA Traingles One triangle ata time\n4.DMA Triangle , Bulk loading 50 triangles at a time");
+	printf("1.Frame Buffer Line\n2.Fifo Triangles\n3.DMA Traingles One triangle at a time\n4.DMA Triangle , Bulk loading 50 triangles at a time\n");
 	scanf("%d",&choice);
 	
 	fd = open("/dev/kyouko2", O_RDWR);
