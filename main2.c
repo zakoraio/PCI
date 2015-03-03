@@ -14,6 +14,7 @@
 #define VMODE _IOW(0xcc,0,unsigned long)
 #define BIND_DMA _IOW(0xcc,1,unsigned long)
 #define START_DMA _IOWR(0xcc,2,unsigned long)
+#define UNBIND_DMA _IO(0xcc,5)
 #define SYNC _IO(0xcc,3)
 #define FLUSH _IO(0xcc,4)
 #define GRAPHICS_ON 1
@@ -64,12 +65,16 @@ void u_sync(void){
 
 
 
+float verticesX[30000][3];
+float verticesY[30000][3];
+float colors[30000][3][3];
 
 
+/*
 float verticesX[9000][3];
 float verticesY[9000][3];
 float colors[9000][3][3];
-
+*/
 
 
 struct Coord
@@ -184,7 +189,7 @@ void draw_fifo(int fd){
 	int tri = 0, i = 0, j = 0;
 	
 	initSierpinski();
-	limit = 4;
+	limit = 8;
 	
 	drawSierpinski(0, left, top, right);
 	
@@ -227,9 +232,16 @@ void draw_fifo(int fd){
 
 
 
-void draw_dma(int arrayIndex){
+int draw_dma(int arrayIndex, int bulkCount, int ch){
 	
 	hdr.opcode = 0x14;
+	if(ch == 4){
+	if(arrayIndex - bulkCount < 0)
+	hdr.count = arrayIndex*3;
+	else
+	hdr.count = bulkCount*3;
+	}
+	else
 	hdr.count = 3;
 	hdr.address = 0x1045;
 	int j = 0;
@@ -237,7 +249,10 @@ void draw_dma(int arrayIndex){
 	countByte = 0;
 	unsigned int* buf = (unsigned int*)(arg);
 	buf[countByte++] = *(unsigned int*)&hdr;
-
+	int k = arrayIndex-bulkCount+1;
+	if( ch == 4 )
+	k = arrayIndex;
+	    for(arrayIndex=k;arrayIndex >= k-bulkCount ;arrayIndex--){
 		for (j = 0; j<3; ++j){
 			buf[countByte++] = *(unsigned int*)&(colors[arrayIndex][j][0]);
 			buf[countByte++] = *(unsigned int*)&(colors[arrayIndex][j][1]);
@@ -245,8 +260,9 @@ void draw_dma(int arrayIndex){
 			buf[countByte++] = *(unsigned int*)&(verticesX[arrayIndex][j]);
 			buf[countByte++] = *(unsigned int*)&(verticesY[arrayIndex][j]);
 			buf[countByte++] = *(unsigned int*)&zero;
-		}
-
+}		
+}
+return arrayIndex;
 }
 
 
@@ -258,7 +274,7 @@ int main(){
 	int i;
 	int ramSize;
 	int choice;
-	printf("1.Frame Buffer Line\n2.Fifo Triangles\n3.DMA Traingles\n");
+	printf("1.Frame Buffer Line\n2.Fifo Triangles\n3.DMA Traingles One triangle ata time\n4.DMA Triangle , Bulk loading 50 triangles at a time");
 	scanf("%d",&choice);
 	
 	fd = open("/dev/kyouko2", O_RDWR);
@@ -279,12 +295,12 @@ int main(){
 	else if(choice == 2){
 	ioctl(fd, SYNC);
 	draw_fifo(fd);
-	U_WRITE_REG(RASTER_FLUSH, 1);
+	ioctl(fd, FLUSH);
 	}
-	else if(choice == 3){
+	else if(choice == 3 || choice == 4){
 	ioctl(fd, SYNC);
 
-	limit = 2;
+	limit = 6;
 	
 	initSierpinski();
 	drawSierpinski(0, left, top, right);
@@ -292,14 +308,16 @@ int main(){
 	ioctl(fd, BIND_DMA, &arg);
 	ioctl(fd, SYNC);
 	for (i = index-1; i >=0; i--) {
-		
-		draw_dma(i);
-		arg = countByte; 
+		if(choice == 4)
+		i=draw_dma(i,30,4);
+		else 
+		draw_dma(i,1,3);
+		arg = countByte*4; 
 		
 		ioctl(fd, SYNC);
 		ioctl(fd, START_DMA, &arg);
 
-		U_WRITE_REG(RASTER_FLUSH, 1);
+		ioctl(fd, FLUSH);
 		ioctl(fd, SYNC);
 
 	}
@@ -307,9 +325,10 @@ int main(){
 	else{
 	printf("Incorrect Choice Exiting.......");
 	}
-	sleep(2);
+	sleep(5);
+	if(choice==3)
+		ioctl(fd, UNBIND_DMA);
 	ioctl(fd, VMODE, GRAPHICS_OFF);
-	U_WRITE_REG(CFG_REBOOT, 1);
 	close(fd);
 	return 0;
 }
