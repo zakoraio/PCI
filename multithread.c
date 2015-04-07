@@ -20,7 +20,7 @@ void* doSomeThing(void *arg)
         printf("\n Second thread processing\n");
     }
 
-    for(i=0; i<(0xFFFFFFFF);i++);
+    while(1){ }
 
     return NULL;
 }
@@ -41,6 +41,6 @@ int main(void)
         i++;
     }
 
-    sleep(5);
+    sleep(60000);
     return 0;
 }
